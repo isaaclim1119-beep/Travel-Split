@@ -135,7 +135,7 @@ color: #1f2937;
 font-weight: 600;
 }
 
-/* 名字复选框卡片样式（退回极简勾选模式） */
+/* 名字复选框卡片样式 */
 .people{
 display:grid;
 grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -178,7 +178,7 @@ transition:0.15s;
 button.main-btn:hover{ opacity:0.92; }
 
 #expenses {
-max-height: 320px;
+max-height: 280px;
 overflow-y: auto;
 padding-right: 4px;
 }
@@ -207,6 +207,9 @@ font-size:12px;
 width:auto;
 border-radius:8px;
 margin-top:8px;
+color: white;
+border: none;
+cursor: pointer;
 }
 
 .summary{
@@ -221,6 +224,25 @@ font-size:14px;
 .copy-btn{
 background:#3b82f6;
 margin-top:12px;
+}
+
+/* 新增分类统计面板样式 */
+.cat-total-row {
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 10px 4px;
+border-bottom: 1px dashed #e5e7eb;
+font-size: 14px;
+}
+.cat-total-row:last-child {
+border-bottom: none;
+}
+.cat-badge {
+display: flex;
+align-items: center;
+gap: 6px;
+font-weight: 500;
 }
 </style>
 </head>
@@ -294,6 +316,11 @@ margin-top:12px;
 <button class="main-btn copy-btn" onclick="copySummary()">📋 Copy Summary</button>
 </div>
 
+<div class="card">
+<h3 style="margin: 0 0 12px 0; font-size:18px;">Category Summary (RM)</h3>
+<div id="categorySummaryList"></div>
+</div>
+
 </div>
 
 <script type="module">
@@ -310,7 +337,6 @@ persistentLocalCache,
 persistentMultipleTabManager
 } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
-// Firebase config
 const firebaseConfig = {
 apiKey: "AIzaSyBlNGAgaA6pbTsgq2lKd9MqsKFZpDar7Q8",
 authDomain: "travel-split-d0fbb.firebaseapp.com",
@@ -322,19 +348,21 @@ appId: "1:252436650566:web:12306fea016a8f9f264847"
 
 const app = initializeApp(firebaseConfig);
 
-// 💡 离线支持（Offline Support）：开启持久化本地缓存，地下铁没信号也能顺畅记账！
+// 开启持久化本地缓存
 const db = initializeFirestore(app, {
 localCache: persistentLocalCache({
 tabManager: persistentMultipleTabManager()
 })
 });
-const colRef = collection(db, "expenses_v3"); // 升级至v3版本避免旧格式干扰
+const colRef = collection(db, "expenses_v3");
 
 const people = ["Isaac", "BeeChing", "Malenda Teo", "Elzy Teo", "Lee Ping"];
+const categories = ["🍱", "🚇", "🛍️", "🏨", "🎟️", "🎲", "❓"];
+const categoryNames = { "🍱": "餐饮", "🚇": "交通", "🛍️": "购物", "🏨": "住宿", "🎟️": "门票", "🎲": "娱乐", "❓": "其它" };
+
 let selectedCategory = "🍱";
 let expenses = [];
 
-// 初始化分类按钮点击事件
 document.querySelectorAll('.category-btn').forEach(btn => {
 btn.addEventListener('click', () => {
 document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
@@ -343,7 +371,6 @@ selectedCategory = btn.getAttribute('data-cat');
 });
 });
 
-// 初始化汇率
 window.addEventListener('DOMContentLoaded', () => {
 const savedRate = localStorage.getItem('trip_exchange_rate');
 if (savedRate) {
@@ -357,7 +384,7 @@ localStorage.setItem('trip_exchange_rate', rateValue);
 };
 
 /* =========================
-   ADD EXPENSE (CLOUD)
+   ADD EXPENSE
 ========================= */
 window.addExpense = async function () {
 const title = document.getElementById("title").value || "Undocumented";
@@ -365,7 +392,6 @@ const inputAmount = parseFloat(document.getElementById("amount").value);
 const currency = document.getElementById("currency").value;
 const payer = document.getElementById("payer").value;
 
-// 获取所有选中的人
 const sharedBy = Array.from(document.querySelectorAll("input[type=checkbox]:checked"))
 .map(i => i.value);
 
@@ -376,24 +402,24 @@ const currentRate = parseFloat(document.getElementById('exchangeRateInput').valu
 let finalAmountMYR = inputAmount;
 let originalNote = "";
 
-// 自动汇率换算
 if (currency === "JPY") {
 finalAmountMYR = parseFloat(((inputAmount / 1000) * currentRate).toFixed(2));
 originalNote = ` (¥${inputAmount})`;
+} else {
+finalAmountMYR = parseFloat(inputAmount.toFixed(2));
 }
 
 await addDoc(colRef, {
-title: selectedCategory + " " + title + originalNote,
+title: title,
+category: selectedCategory, // 规范化存储分类图标
 amount: finalAmountMYR,
 payer,
 sharedBy,
 time: Date.now()
 });
 
-// 重置输入状态
 document.getElementById("title").value = "";
 document.getElementById("amount").value = "";
-// 自动恢复全选
 document.querySelectorAll("input[type=checkbox]").forEach(c => c.checked = true);
 };
 
@@ -407,7 +433,7 @@ render();
 });
 
 /* =========================
-   DELETE (WITH CONFIRM)
+   DELETE
 ========================= */
 window.del = async function (id) {
 if (confirm("Are you sure you want to delete this expense?")) {
@@ -429,14 +455,18 @@ return;
 }
 
 expenses.forEach(e => {
+// 兼容旧格式，如果旧记录里没有独立的 category 字段，就尝试从 title 提取图标
+const displayCat = e.category || (e.title ? e.title.substring(0, 2).trim() : "❓");
+const displayTitle = e.category ? e.title : e.title.replace(/^[🍱🚇🛍️🏨🎟️🎲❓]\s*/, "");
+
 list.innerHTML += `
 <div class="expense">
 <div class="expense-header">
-<span><b>${e.title}</b></span>
-<span style="color:#5f8f7b; font-weight:bold;">RM${e.amount.toFixed(2)}</span>
+<span><b>${displayCat} ${displayTitle}</b></span>
+<span style="color:#5f8f7b; font-weight:bold;">RM${(e.amount || 0).toFixed(2)}</span>
 </div>
 <div style="font-size:12px; color:#6b7280; margin-top:4px;">
-Paid by <b>${e.payer}</b> · Shared: ${e.sharedBy.join(", ")}
+Paid by <b>${e.payer || 'Unknown'}</b> · Shared: ${e.sharedBy ? e.sharedBy.join(", ") : 'No one'}
 </div>
 <button class="delete-btn" onclick="del('${e.id}')">Delete</button>
 </div>
@@ -447,24 +477,45 @@ calc();
 }
 
 /* =========================
-   FINAL SETTLEMENT
+   FINAL SETTLEMENT & CATEGORY TOTAL
 ========================= */
 function calc() {
 let bal = {};
+let catTotals = {};
+
 people.forEach(p => bal[p] = 0);
+categories.forEach(c => catTotals[c] = 0);
 
 expenses.forEach(e => {
+// 💥 核心防崩溃注入：严格检查当前数据是否包含合法的 sharedBy 数组
+if (!e.sharedBy || !Array.isArray(e.sharedBy) || e.sharedBy.length === 0 || !e.amount) {
+return; // 发现不兼容的旧测试数据，自动跳过，绝不卡死
+}
+
+// 1. 正常计算记账清算
 let share = e.amount / e.sharedBy.length;
-e.sharedBy.forEach(p => bal[p] -= share);
-bal[e.payer] += e.amount;
+e.sharedBy.forEach(p => {
+if (bal.hasOwnProperty(p)) bal[p] -= share;
+});
+if (bal.hasOwnProperty(e.payer)) bal[e.payer] += e.amount;
+
+// 2. 正常统计分类总数
+const catKey = e.category || e.title.substring(0, 2).trim();
+if (catTotals.hasOwnProperty(catKey)) {
+catTotals[catKey] += e.amount;
+} else {
+catTotals["❓"] += e.amount; // 匹配不到的统一归为其它
+}
 });
 
+// 计算债务抵消列表
 let creditors = [];
 let debtors = [];
 
 for (let p in bal) {
-if (bal[p] > 0.01) creditors.push({ name: p, amt: bal[p] });
-if (bal[p] < -0.01) debtors.push({ name: p, amt: -bal[p] });
+let exactBal = parseFloat(bal[p].toFixed(2));
+if (exactBal > 0.01) creditors.push({ name: p, amt: exactBal });
+if (exactBal < -0.01) debtors.push({ name: p, amt: Math.abs(exactBal) });
 }
 
 creditors.sort((a,b)=>b.amt-a.amt);
@@ -477,23 +528,55 @@ while (i < debtors.length && j < creditors.length) {
 let d = debtors[i];
 let c = creditors[j];
 let pay = Math.min(d.amt, c.amt);
+pay = parseFloat(pay.toFixed(2));
 
 if (pay > 0.01) {
 out.push(`${d.name} pays ${c.name} RM${pay.toFixed(2)}`);
 }
 
-d.amt -= pay;
-c.amt -= pay;
+d.amt = parseFloat((d.amt - pay).toFixed(2));
+c.amt = parseFloat((c.amt - pay).toFixed(2));
 
-if (d.amt < 0.01) i++;
-if (c.amt < 0.01) j++;
+if (d.amt <= 0.01) i++;
+if (c.amt <= 0.01) j++;
 }
 
+// 渲染最终清算
 const summaryDiv = document.getElementById("summary");
 if (out.length === 0) {
 summaryDiv.innerHTML = `<div style="text-align:center; color:#9ca3af; padding: 10px 0;">All settled up! 🎉</div>`;
 } else {
 summaryDiv.innerHTML = out.map(x => `<div class="summary">💰 ${x}</div>`).join("");
+}
+
+// 渲染每个分类的总金额统计
+const catDiv = document.getElementById("categorySummaryList");
+let totalAll = 0;
+let catHTML = "";
+
+categories.forEach(c => {
+const amt = catTotals[c] || 0;
+totalAll += amt;
+if (amt > 0) {
+catHTML += `
+<div class="cat-total-row">
+<div class="cat-badge"><span>${c}</span> <span>${categoryNames[c]}</span></div>
+<div style="font-weight: 600; color: #374151;">RM ${amt.toFixed(2)}</div>
+</div>
+`;
+}
+});
+
+if (totalAll === 0) {
+catDiv.innerHTML = `<div style="text-align:center; color:#9ca3af; padding: 10px 0;">No category data.</div>`;
+} else {
+catHTML += `
+<div class="cat-total-row" style="border-top: 2px solid #5f8f7b; margin-top: 8px; padding-top: 12px; font-weight: bold; color: #2c4a3f;">
+<div class="cat-badge">💵 <span>总计花费 (Total)</span></div>
+<div style="font-size: 16px;">RM ${totalAll.toFixed(2)}</div>
+</div>
+`;
+catDiv.innerHTML = catHTML;
 }
 }
 
