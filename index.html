@@ -27,10 +27,17 @@ margin:auto;
 
 h1{
 text-align:center;
-margin-bottom:22px;
-font-size:28px;
+margin-bottom:6px;
+font-size:26px;
 color:#2c4a3f;
 letter-spacing:-0.5px;
+}
+
+.subtitle {
+text-align: center;
+color: #6b7280;
+font-size: 13px;
+margin-bottom: 22px;
 }
 
 .card{
@@ -39,6 +46,31 @@ padding:22px;
 border-radius:18px;
 margin-bottom:18px;
 box-shadow:0 2px 12px rgba(0,0,0,0.06);
+}
+
+/* 顶部小看板 */
+.stats-grid {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 12px;
+margin-bottom: 18px;
+}
+.stat-box {
+background: white;
+padding: 14px;
+border-radius: 14px;
+box-shadow:0 2px 12px rgba(0,0,0,0.04);
+text-align: center;
+}
+.stat-val {
+font-size: 18px;
+font-weight: bold;
+color: #2c4a3f;
+margin-top: 4px;
+}
+.stat-lbl {
+font-size: 12px;
+color: #6b7280;
 }
 
 .input-group {
@@ -69,7 +101,6 @@ border-color:#5f8f7b;
 box-shadow:0 0 0 3px rgba(95,143,123,0.15);
 }
 
-/* 汇率小格子样式 */
 .rate-settings {
 display: flex;
 align-items: center;
@@ -93,7 +124,6 @@ border-radius: 8px;
 text-align: center;
 }
 
-/* 分类选择（流式滑动） */
 .category-title {
 font-size: 14px;
 font-weight: 600;
@@ -128,14 +158,6 @@ border-color: #5f8f7b;
 font-weight: 600;
 }
 
-.section-title {
-margin: 18px 0 10px 0;
-font-size: 16px;
-color: #1f2937;
-font-weight: 600;
-}
-
-/* 名字复选框卡片样式 */
 .people{
 display:grid;
 grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -178,7 +200,7 @@ transition:0.15s;
 button.main-btn:hover{ opacity:0.92; }
 
 #expenses {
-max-height: 280px;
+max-height: 320px;
 overflow-y: auto;
 padding-right: 4px;
 }
@@ -200,33 +222,83 @@ align-items: flex-start;
 font-weight: bold;
 }
 
+.expense-meta {
+display: flex;
+justify-content: space-between;
+align-items: center;
+font-size: 12px;
+color: #6b7280;
+margin-top: 6px;
+}
+
+.expense-time {
+font-size: 11px;
+color: #9ca3af;
+background: #eee;
+padding: 2px 6px;
+border-radius: 6px;
+}
+
 .delete-btn{
 background:#ef4444;
-padding:5px 10px;
-font-size:12px;
+padding:4px 8px;
+font-size:11px;
 width:auto;
-border-radius:8px;
-margin-top:8px;
+border-radius:6px;
 color: white;
 border: none;
 cursor: pointer;
+}
+
+.summary-wrapper {
+margin-top: 10px;
 }
 
 .summary{
 background:linear-gradient(135deg,#e8f5ef,#f1f7ff);
 padding:12px;
 border-radius:12px;
-margin-top:10px;
+margin-bottom:8px;
 font-weight:500;
 font-size:14px;
+display: flex;
+align-items: center;
+gap: 6px;
+}
+
+/* 📊 自研极简原生图表条样式 */
+.chart-container {
+margin-top: 16px;
+padding-top: 14px;
+border-top: 1px solid #f3f4f6;
+}
+.chart-row {
+margin-bottom: 10px;
+font-size: 13px;
+}
+.chart-label-group {
+display: flex;
+justify-content: space-between;
+margin-bottom: 4px;
+}
+.chart-bar-bg {
+background: #f3f4f6;
+height: 8px;
+border-radius: 4px;
+overflow: hidden;
+position: relative;
+}
+.chart-bar-fill {
+height: 100%;
+border-radius: 4px;
+transition: width 0.3s ease;
 }
 
 .copy-btn{
 background:#3b82f6;
-margin-top:12px;
+margin-top:6px;
 }
 
-/* 新增分类统计面板样式 */
 .cat-total-row {
 display: flex;
 justify-content: space-between;
@@ -252,6 +324,18 @@ font-weight: 500;
 <div class="container">
 
 <h1>✈️ Travel Split Pro</h1>
+<div class="subtitle">日本之旅 · 联机极简实时记账</div>
+
+<div class="stats-grid">
+  <div class="stat-box">
+    <div class="stat-lbl">💵 总计花费 (Total)</div>
+    <div class="stat-val" id="totalSpentAll">RM 0.00</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-lbl">👥 估算人均 (Per Person)</div>
+    <div class="stat-val" id="perPersonSpent">RM 0.00</div>
+  </div>
+</div>
 
 <div class="card">
 <input type="text" id="title" placeholder="Expense title (e.g. Ichiran Ramen)">
@@ -311,9 +395,11 @@ font-weight: 500;
 </div>
 
 <div class="card">
-<h3 style="margin: 0 0 10px 0; font-size:18px;">Final Settlement (RM)</h3>
-<div id="summary"></div>
+<h3 style="margin: 0 0 4px 0; font-size:18px;">Final Settlement (RM)</h3>
+<div id="summary" class="summary-wrapper"></div>
 <button class="main-btn copy-btn" onclick="copySummary()">📋 Copy Summary</button>
+
+<div class="chart-container" id="chartDashboard"></div>
 </div>
 
 <div class="card">
@@ -348,7 +434,7 @@ appId: "1:252436650566:web:12306fea016a8f9f264847"
 
 const app = initializeApp(firebaseConfig);
 
-// 开启持久化本地缓存
+// 开启持久化离线本地缓存
 const db = initializeFirestore(app, {
 localCache: persistentLocalCache({
 tabManager: persistentMultipleTabManager()
@@ -383,6 +469,17 @@ const rateValue = parseFloat(document.getElementById('exchangeRateInput').value)
 localStorage.setItem('trip_exchange_rate', rateValue);
 };
 
+// 格式化时间戳小函数
+function formatTime(timestamp) {
+  if (!timestamp) return "";
+  const d = new Date(timestamp);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${m}-${day} ${h}:${min}`;
+}
+
 /* =========================
    ADD EXPENSE
 ========================= */
@@ -411,7 +508,7 @@ finalAmountMYR = parseFloat(inputAmount.toFixed(2));
 
 await addDoc(colRef, {
 title: title,
-category: selectedCategory, // 规范化存储分类图标
+category: selectedCategory,
 amount: finalAmountMYR,
 payer,
 sharedBy,
@@ -450,14 +547,16 @@ list.innerHTML = "";
 
 if (expenses.length === 0) {
 list.innerHTML = `<div style="text-align:center; color:#9ca3af; padding: 20px 0;">No expenses recorded yet.</div>`;
+document.getElementById("totalSpentAll").innerText = "RM 0.00";
+document.getElementById("perPersonSpent").innerText = "RM 0.00";
 calc();
 return;
 }
 
 expenses.forEach(e => {
-// 兼容旧格式，如果旧记录里没有独立的 category 字段，就尝试从 title 提取图标
-const displayCat = e.category || (e.title ? e.title.substring(0, 2).trim() : "❓");
-const displayTitle = e.category ? e.title : e.title.replace(/^[🍱🚇🛍️🏨🎟️🎲❓]\s*/, "");
+const displayCat = e.category || "❓";
+const displayTitle = e.title;
+const timeStr = formatTime(e.time); // 获取漂亮的时间戳
 
 list.innerHTML += `
 <div class="expense">
@@ -465,10 +564,13 @@ list.innerHTML += `
 <span><b>${displayCat} ${displayTitle}</b></span>
 <span style="color:#5f8f7b; font-weight:bold;">RM${(e.amount || 0).toFixed(2)}</span>
 </div>
-<div style="font-size:12px; color:#6b7280; margin-top:4px;">
-Paid by <b>${e.payer || 'Unknown'}</b> · Shared: ${e.sharedBy ? e.sharedBy.join(", ") : 'No one'}
+<div class="expense-meta">
+<span>Paid by <b>${e.payer || 'Unknown'}</b> · Shared: ${e.sharedBy ? e.sharedBy.join(", ") : 'No one'}</span>
+<span class="expense-time">${timeStr}</span>
 </div>
+<div style="text-align: right; margin-top: 6px;">
 <button class="delete-btn" onclick="del('${e.id}')">Delete</button>
+</div>
 </div>
 `;
 });
@@ -477,7 +579,7 @@ calc();
 }
 
 /* =========================
-   FINAL SETTLEMENT & CATEGORY TOTAL
+   FINAL SETTLEMENT & STATS & CHARTS
 ========================= */
 function calc() {
 let bal = {};
@@ -486,34 +588,40 @@ let catTotals = {};
 people.forEach(p => bal[p] = 0);
 categories.forEach(c => catTotals[c] = 0);
 
-expenses.forEach(e => {
-// 💥 核心防崩溃注入：严格检查当前数据是否包含合法的 sharedBy 数组
-if (!e.sharedBy || !Array.isArray(e.sharedBy) || e.sharedBy.length === 0 || !e.amount) {
-return; // 发现不兼容的旧测试数据，自动跳过，绝不卡死
-}
+let totalAllSpent = 0;
 
-// 1. 正常计算记账清算
+expenses.forEach(e => {
+if (!e.sharedBy || !Array.isArray(e.sharedBy) || e.sharedBy.length === 0 || !e.amount) return;
+
+// 1. 累计大总数
+totalAllSpent += e.amount;
+
+// 2. 正常计算记账清算
 let share = e.amount / e.sharedBy.length;
 e.sharedBy.forEach(p => {
 if (bal.hasOwnProperty(p)) bal[p] -= share;
 });
 if (bal.hasOwnProperty(e.payer)) bal[e.payer] += e.amount;
 
-// 2. 正常统计分类总数
-const catKey = e.category || e.title.substring(0, 2).trim();
+// 3. 正常统计分类总数
+const catKey = e.category || "❓";
 if (catTotals.hasOwnProperty(catKey)) {
 catTotals[catKey] += e.amount;
-} else {
-catTotals["❓"] += e.amount; // 匹配不到的统一归为其它
 }
 });
+
+// 渲染大顶部看板数据
+document.getElementById("totalSpentAll").innerText = `RM ${totalAllSpent.toFixed(2)}`;
+document.getElementById("perPersonSpent").innerText = `RM ${(totalAllSpent / people.length).toFixed(2)}`;
 
 // 计算债务抵消列表
 let creditors = [];
 let debtors = [];
+let maxAbsBal = 0.01; // 用于算比例条的基准值
 
 for (let p in bal) {
 let exactBal = parseFloat(bal[p].toFixed(2));
+if (Math.abs(exactBal) > maxAbsBal) maxAbsBal = Math.abs(exactBal);
 if (exactBal > 0.01) creditors.push({ name: p, amt: exactBal });
 if (exactBal < -0.01) debtors.push({ name: p, amt: Math.abs(exactBal) });
 }
@@ -549,6 +657,31 @@ summaryDiv.innerHTML = `<div style="text-align:center; color:#9ca3af; padding: 1
 summaryDiv.innerHTML = out.map(x => `<div class="summary">💰 ${x}</div>`).join("");
 }
 
+// 📊 渲染原生余额可视化比例图表 (Visual Balance Bars)
+const chartDiv = document.getElementById("chartDashboard");
+let chartHTML = `<div style="font-size: 13px; font-weight: 600; color: #4b5563; margin-bottom: 10px;">📊 实时收支状态 (Balance Chart)</div>`;
+for (let p in bal) {
+  const currentBal = parseFloat(bal[p].toFixed(2));
+  const percentage = Math.min(100, (Math.abs(currentBal) / maxAbsBal) * 100);
+  let barColor = "#9ca3af"; // 0轴灰色
+  let sign = "";
+  if (currentBal > 0.01) { barColor = "#10b981"; sign = "+"; } // 绿条：应收
+  if (currentBal < -0.01) { barColor = "#ef4444"; sign = ""; }  // 红条：应付
+  
+  chartHTML += `
+    <div class="chart-row">
+      <div class="chart-label-group">
+        <span><b>${p}</b></span>
+        <span style="color: ${barColor}; font-weight: 600;">${sign}RM ${currentBal.toFixed(2)}</span>
+      </div>
+      <div class="chart-bar-bg">
+        <div class="chart-bar-fill" style="width: ${percentage}%; background-color: ${barColor};"></div>
+      </div>
+    </div>
+  `;
+}
+chartDiv.innerHTML = chartHTML;
+
 // 渲染每个分类的总金额统计
 const catDiv = document.getElementById("categorySummaryList");
 let totalAll = 0;
@@ -572,7 +705,7 @@ catDiv.innerHTML = `<div style="text-align:center; color:#9ca3af; padding: 10px 
 } else {
 catHTML += `
 <div class="cat-total-row" style="border-top: 2px solid #5f8f7b; margin-top: 8px; padding-top: 12px; font-weight: bold; color: #2c4a3f;">
-<div class="cat-badge">💵 <span>总计花费 (Total)</span></div>
+<div class="cat-badge">💵 <span>分类花费总计 (Total)</span></div>
 <div style="font-size: 16px;">RM ${totalAll.toFixed(2)}</div>
 </div>
 `;
